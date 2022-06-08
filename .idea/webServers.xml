@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="WebServers">
+    <option name="servers">
+      <webServer id="5d69fa10-1be0-49f7-9840-e2e1e22a24f2" name="Barbora">
+        <fileTransfer accessType="SFTP" host="barbora.it4i.cz" port="22" sshConfigId="0a24f46e-3531-4577-b19f-18213043e1db" sshConfig="Barbora" keyPair="true">
+          <advancedOptions>
+            <advancedOptions dataProtectionLevel="Private" keepAliveTimeout="30000" passiveMode="true" shareSSLContext="true" />
+          </advancedOptions>
+        </fileTransfer>
+      </webServer>
+    </option>
+  </component>
+</project>
