@@ -34,32 +34,6 @@ void create_glider(int col_offst, int row_offst, int grid_width, int grid_height
     }
 }
 
-void create_blinker(int col_offst, int row_offst, int grid_width, int grid_height, int *grid) {
-    int glider_coords[3][3] = {{0, 1, 0}, {0, 1, 0}, {0, 1, 0}};
-    for(int x_pos = 0; x_pos < 3; x_pos++) {
-        for(int y_pos = 0; y_pos < 3; y_pos++) {
-            if(col_offst<=grid_width-3 && row_offst<=grid_height-3) {
-                grid[(x_pos+row_offst)*grid_width + (y_pos+col_offst)] = glider_coords[x_pos][y_pos];
-            } else {
-                std::cout<<"blinker out of grid"<<std::endl;
-            }
-        }
-    }
-}
-
-void create_block(int col_offst, int row_offst, int grid_width, int grid_height, int *grid) {
-    int glider_coords[3][3] = {{1, 1, 0}, {1, 1, 0}, {0, 0, 0}};
-    for(int x_pos = 0; x_pos < 3; x_pos++) {
-        for(int y_pos = 0; y_pos < 3; y_pos++) {
-            if(col_offst<=grid_width-3 && row_offst<=grid_height-3) {
-                grid[(x_pos+row_offst)*grid_width + (y_pos+col_offst)] = glider_coords[x_pos][y_pos];
-            } else {
-                std::cout<<"block out of grid"<<std::endl;
-            }
-        }
-    }
-}
-
 void print_grid(int grid_width, int grid_height, int *grid) {
     for (int i = 0; i< grid_width; i++) {
         for (int j = 0; j< grid_height; j++) {
@@ -95,13 +69,13 @@ __global__ void run_life_one_step(const int* world_matrix, int grid_width,
 }
 
 void run_life(int*& d_world_matrix, int*& d_world_matrixBuffer, size_t grid_width,
-              size_t grid_height, size_t iterationsCount, short threadsCount, cudaStream_t stream3) {
+              size_t grid_height, size_t iterationsCount, short threadsCount) {
 
     int reqBlocksCount = (grid_width * grid_height) / threadsCount;
     int blocksCount = (int) std::min(65535, reqBlocksCount);
 
     for (int i = 0; i < iterationsCount; ++i) {
-        run_life_one_step<<<blocksCount, threadsCount, 0, stream3>>>(d_world_matrix, grid_width, grid_height, d_world_matrixBuffer);
+        run_life_one_step<<<blocksCount, threadsCount>>>(d_world_matrix, grid_width, grid_height, d_world_matrixBuffer);
         std::swap(d_world_matrix, d_world_matrixBuffer);
     }
 }
@@ -131,11 +105,8 @@ int main(int argc, char **argv) {
     CUDACHECK(cudaMallocHost(&life_data_host, size));
     CUDACHECK(cudaMallocHost(&life_data_buffer_host, size));
 
-    //create_glider(3, 4, grid_width, grid_height, life_data_host);
-    //create_glider(0, 12, grid_width, grid_height, life_data_host);
-    //create_blinker(12, 5, grid_width, grid_height, life_data_host);
-    create_block(12, 5, grid_width, grid_height, life_data_host);
-
+    create_glider(3, 4, grid_width, grid_height, life_data_host);
+    create_glider(0, 12, grid_width, grid_height, life_data_host);
     print_grid(grid_width, grid_height, life_data_host);
 
     int* life_data_device;
@@ -144,16 +115,12 @@ int main(int argc, char **argv) {
     CUDACHECK(cudaMalloc(&life_data_device, size));
     CUDACHECK(cudaMalloc(&life_data_buffer_device, size));
 
-    cudaStream_t stream1;
-    CUDACHECK(cudaStreamCreate(&stream1));
 
-    CUDACHECK(cudaMemcpyAsync(life_data_device, life_data_host, size, cudaMemcpyHostToDevice, stream1));
-    CUDACHECK(cudaMemcpyAsync(life_data_buffer_device, life_data_buffer_host, size, cudaMemcpyHostToDevice, stream1));
+    CUDACHECK(cudaMemcpy(life_data_device, life_data_host, size, cudaMemcpyHostToDevice));
+    CUDACHECK(cudaMemcpy(life_data_buffer_device, life_data_buffer_host, size, cudaMemcpyHostToDevice));
 
-    CUDAMEASURE((run_life(life_data_device, life_data_buffer_device, grid_width, grid_height, generations, tpb, stream1)));
-    CUDACHECK(cudaMemcpyAsync(life_data_host, life_data_device, size, cudaMemcpyDeviceToHost, stream1));
-
-    cudaStreamDestroy(stream1);
+    CUDAMEASURE((run_life(life_data_device, life_data_buffer_device, grid_width, grid_height, generations, tpb)));
+    CUDACHECK(cudaMemcpy(life_data_host, life_data_device, size, cudaMemcpyDeviceToHost));
 
     CUDACHECK(cudaDeviceSynchronize());
 
